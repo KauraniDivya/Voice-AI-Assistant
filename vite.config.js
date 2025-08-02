@@ -19,5 +19,12 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/elevenlabs/, '/api/elevenlabs')
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
 })
