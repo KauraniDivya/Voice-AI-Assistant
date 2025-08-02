@@ -120,73 +120,80 @@ const VoiceAICompanion = () => {
     }
   };
 
-const callGemini = async (userInput) => {
-  const selectedPreset = companionPresets[config.companionType];
-  const prompt = config.customPrompt || selectedPreset.prompt;
+  const callGemini = async (userInput) => {
+    const selectedPreset = companionPresets[config.companionType];
+    const prompt = config.customPrompt || selectedPreset.prompt;
+    
+    const fullPrompt = `${prompt}\n\nUser said: "${userInput}"\n\nRespond as ${config.companionName}:`;
   
-  const fullPrompt = `${prompt}\n\nUser said: "${userInput}"\n\nRespond as ${config.companionName}:`;
-
-  const body = {
-    contents: [{
-      parts: [{ text: fullPrompt }]
-    }]
+    // Fixed: Send apiKey and contents separately
+    const body = {
+      contents: [{
+        parts: [{ text: fullPrompt }]
+      }],
+      apiKey: config.geminiApiKey  // This should be separate from contents
+    };
+  
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
+    }
+  
+    return await response.json();
   };
 
-  const response = await fetch(`/api/gemini?key=${config.geminiApiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
-  }
-
-  return await response.json();
-};
-
-const synthesizeSpeech = async (text) => {
-  if (!config.elevenLabsApiKey) {
-    fallbackToChrome(text);
-    return;
-  }
-
-  try {
-    const response = await fetch(`/api/elevenlabs/v1/text-to-speech/${config.voiceId}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': config.elevenLabsApiKey
-      },
-      body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_monolingual_v1',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.6,
-          style: 0.8,
-          use_speaker_boost: true
-        }
-      })
-    });
-
-    if (!response.ok) {
+  const synthesizeSpeech = async (text) => {
+    if (!config.elevenLabsApiKey) {
       fallbackToChrome(text);
       return;
     }
-
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    if (audioRef.current) {
-      audioRef.current.src = audioUrl;
-      audioRef.current.play();
+  
+    try {
+      // Fixed: Send apiKey in the body, not headers
+      const response = await fetch(`/api/elevenlabs/v1/text-to-speech/${config.voiceId}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.6,
+            style: 0.8,
+            use_speaker_boost: true
+          },
+          apiKey: config.elevenLabsApiKey  // Send apiKey in body
+        })
+      });
+  
+      if (!response.ok) {
+        console.warn('ElevenLabs API failed, using fallback voice');
+        fallbackToChrome(text);
+        return;
+      }
+  
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl;
+        audioRef.current.play();
+      }
+    } catch (error) {
+      console.warn('Voice synthesis error, using fallback:', error);
+      fallbackToChrome(text);
     }
-  } catch (error) {
-    fallbackToChrome(text);
-  }
-};
+  };
 
   const fallbackToChrome = (text) => {
     if ('speechSynthesis' in window) {
