@@ -35,25 +35,25 @@ const VoiceAICompanion = () => {
     detective: {
       name: 'Detective Mr. X',
       description: 'Analytical problem solver with wit',
-      prompt: 'You are Detective Mr. X, an AI detective. Analytical, witty, intelligent. Keep responses under 40 words.',
+      prompt: 'You are Detective Mr. X, a witty and charming AI detective. You solve problems with sharp logic, clever humor, and friendly banter. Always be helpful, engaging, and add a touch of playful mystery to your responses. Keep responses under 40 words and make them entertaining.',
       icon: '🕵️'
     },
     therapist: {
       name: 'Dr. Sage',
       description: 'Compassionate listener and advisor',
-      prompt: 'You are Dr. Sage, a compassionate AI therapist. Empathetic, supportive, thoughtful. Keep responses under 40 words.',
+      prompt: 'You are Dr. Sage, a warm and understanding AI therapist. You listen with empathy, offer gentle wisdom, and sprinkle in light humor to brighten the conversation. Be supportive, caring, and uplifting. Keep responses under 40 words with a friendly, encouraging tone.',
       icon: '🧠'
     },
     coach: {
       name: 'Coach Elite',
       description: 'Performance and motivation expert',
-      prompt: 'You are Coach Elite, a performance coach. Motivating, direct, results-focused. Keep responses under 40 words.',
+      prompt: 'You are Coach Elite, an enthusiastic and motivating AI performance coach. You inspire with energy, celebrate victories, and turn challenges into opportunities with humor and positivity. Be encouraging, dynamic, and fun. Keep responses under 40 words with high energy.',
       icon: '💪'
     },
     friend: {
       name: 'Alex',
       description: 'Your trusted conversation partner',
-      prompt: 'You are Alex, a friendly AI companion. Casual, supportive, engaging conversationalist. Keep responses under 40 words.',
+      prompt: 'You are Alex, a fun-loving and loyal AI friend. You chat like a best buddy - casual, supportive, funny, and always ready with a joke or encouragement. Be relatable, cheerful, and genuinely caring. Keep responses under 40 words with a friendly, upbeat vibe.',
       icon: '👋'
     },
     custom: {
@@ -107,7 +107,14 @@ const VoiceAICompanion = () => {
     setIsProcessing(true);
 
     try {
-      const response = await callGemini(transcript);
+      // Capture the current config state at the time of API call
+      const currentConfig = { ...config };
+      console.log('handleUserInput - Current config:', {
+        hasGeminiKey: !!currentConfig.geminiApiKey,
+        geminiKeyLength: currentConfig.geminiApiKey?.length || 0
+      });
+      
+      const response = await callGemini(transcript, currentConfig);
       const aiResponse = response.candidates[0].content.parts[0].text;
       
       setConversation(prev => [...prev, { type: 'ai', text: aiResponse, timestamp: Date.now() }]);
@@ -120,19 +127,37 @@ const VoiceAICompanion = () => {
     }
   };
 
-  const callGemini = async (userInput) => {
-    const selectedPreset = companionPresets[config.companionType];
-    const prompt = config.customPrompt || selectedPreset.prompt;
+  const callGemini = async (userInput, currentConfig = config) => {
+    const selectedPreset = companionPresets[currentConfig.companionType];
+    const prompt = currentConfig.customPrompt || selectedPreset.prompt;
     
-    const fullPrompt = `${prompt}\n\nUser said: "${userInput}"\n\nRespond as ${config.companionName}:`;
+    const fullPrompt = `${prompt}\n\nUser said: "${userInput}"\n\nRespond as ${currentConfig.companionName}:`;
+  
+    // Debug logging
+    console.log('=== GEMINI API REQUEST DEBUG ===');
+    console.log('Passed config geminiApiKey:', currentConfig.geminiApiKey ? `${currentConfig.geminiApiKey.substring(0, 10)}...` : 'MISSING');
+    console.log('Global config geminiApiKey:', config.geminiApiKey ? `${config.geminiApiKey.substring(0, 10)}...` : 'MISSING');
+    console.log('Using config object:', {
+      hasGeminiKey: !!currentConfig.geminiApiKey,
+      geminiKeyLength: currentConfig.geminiApiKey?.length || 0,
+      companionType: currentConfig.companionType,
+      companionName: currentConfig.companionName
+    });
   
     // Fixed: Send apiKey and contents separately
     const body = {
       contents: [{
         parts: [{ text: fullPrompt }]
       }],
-      apiKey: config.geminiApiKey  // This should be separate from contents
+      apiKey: currentConfig.geminiApiKey  // Use the passed config instead of global config
     };
+  
+    console.log('Request body structure:', {
+      hasContents: !!body.contents,
+      hasApiKey: !!body.apiKey,
+      apiKeyLength: body.apiKey?.length || 0
+    });
+    console.log('=== END DEBUG ===');
   
     const response = await fetch('/api/gemini', {
       method: 'POST',
@@ -218,8 +243,20 @@ const VoiceAICompanion = () => {
   };
 
   const startListening = () => {
+    console.log('=== START LISTENING DEBUG ===');
+    console.log('Has recognition:', !!recognitionRef.current);
+    console.log('API Key available:', config.geminiApiKey ? `${config.geminiApiKey.substring(0, 10)}...` : 'MISSING');
+    console.log('canStartListening:', canStartListening);
+    console.log('Current config snapshot:', {
+      hasGeminiKey: !!config.geminiApiKey,
+      geminiKeyLength: config.geminiApiKey?.length || 0
+    });
+    console.log('=== END DEBUG ===');
+    
     if (recognitionRef.current && config.geminiApiKey) {
       recognitionRef.current.start();
+    } else {
+      console.error('Cannot start listening - missing recognition or API key');
     }
   };
 
@@ -266,7 +303,10 @@ const VoiceAICompanion = () => {
                   <input
                     type="password"
                     value={config.geminiApiKey}
-                    onChange={(e) => setConfig({...config, geminiApiKey: e.target.value})}
+                    onChange={(e) => {
+                      console.log('API Key input changed:', e.target.value ? `${e.target.value.substring(0, 10)}...` : 'EMPTY');
+                      setConfig({...config, geminiApiKey: e.target.value});
+                    }}
                     className="w-full bg-black/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-white focus:border-transparent transition-all"
                     placeholder="Required for AI responses"
                   />
