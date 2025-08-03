@@ -17,10 +17,30 @@ export default async function handler(req, res) {
   try {
     // Debug logging
     console.log('Request method:', req.method);
-    console.log('Request body:', req.body);
     console.log('Request headers:', req.headers);
+    console.log('Raw body:', req.body);
+    console.log('Body type:', typeof req.body);
 
-    const { contents, apiKey } = req.body;
+    // Handle both parsed and raw body
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
+    }
+
+    console.log('Parsed body:', body);
+
+    const { contents, apiKey } = body;
+    
+    console.log('Extracted values:', { 
+      hasContents: !!contents, 
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0
+    });
     
     if (!apiKey) {
       console.log('Missing API key');
