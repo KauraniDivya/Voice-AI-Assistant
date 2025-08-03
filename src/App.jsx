@@ -133,7 +133,7 @@ const VoiceAICompanion = () => {
     
     const fullPrompt = `${prompt}\n\nUser said: "${userInput}"\n\nRespond as ${currentConfig.companionName}:`;
   
-    // Debug logging
+    // Debug logging - Production Version
     console.log('=== GEMINI API REQUEST DEBUG ===');
     console.log('Passed config geminiApiKey:', currentConfig.geminiApiKey ? `${currentConfig.geminiApiKey.substring(0, 10)}...` : 'MISSING');
     console.log('Global config geminiApiKey:', config.geminiApiKey ? `${config.geminiApiKey.substring(0, 10)}...` : 'MISSING');
