@@ -108,9 +108,27 @@ app.post('/api/elevenlabs/v1/text-to-speech/:voiceId', async (req, res) => {
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(join(__dirname, 'dist')));
+  // Serve static files with proper MIME types
+  app.use(express.static(join(__dirname, 'dist'), {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.mjs')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      }
+    }
+  }));
   
+  // Only serve index.html for non-asset requests
   app.get('*', (req, res) => {
+    // Don't serve index.html for API routes or static assets
+    if (req.path.startsWith('/api/') || 
+        req.path.includes('.') || 
+        req.path.startsWith('/assets/')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
     res.sendFile(join(__dirname, 'dist', 'index.html'));
   });
 }

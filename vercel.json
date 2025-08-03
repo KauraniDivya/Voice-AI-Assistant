@@ -11,7 +11,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|assets|.*\\.).+)",
       "destination": "/index.html"
     }
   ],
@@ -30,6 +30,33 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.js)$",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.mjs)$",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.css)$",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/css"
         }
       ]
     }
