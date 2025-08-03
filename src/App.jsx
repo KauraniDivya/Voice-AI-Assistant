@@ -30,6 +30,12 @@ const VoiceAICompanion = () => {
   
   const recognitionRef = useRef(null);
   const audioRef = useRef(null);
+  const configRef = useRef(config);
+
+  // Keep configRef updated whenever config changes
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   const companionPresets = {
     detective: {
@@ -89,9 +95,33 @@ const VoiceAICompanion = () => {
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
     
+    // FIXED: Use configRef to get current config state
     recognition.onresult = async (event) => {
       const transcript = event.results[0][0].transcript;
-      await handleUserInput(transcript);
+      console.log('Speech recognition result:', transcript);
+      
+      // Get the current config from ref (not stale closure)
+      const currentConfig = { ...configRef.current };
+      console.log('onresult - Current config from ref:', {
+        hasGeminiKey: !!currentConfig.geminiApiKey,
+        geminiKeyLength: currentConfig.geminiApiKey?.length || 0
+      });
+      
+      setConversation(prev => [...prev, { type: 'user', text: transcript, timestamp: Date.now() }]);
+      setIsProcessing(true);
+
+      try {
+        const response = await callGemini(transcript, currentConfig);
+        const aiResponse = response.candidates[0].content.parts[0].text;
+        
+        setConversation(prev => [...prev, { type: 'ai', text: aiResponse, timestamp: Date.now() }]);
+        await synthesizeSpeech(aiResponse);
+      } catch (error) {
+        console.error('Error:', error);
+        setConversation(prev => [...prev, { type: 'error', text: 'Unable to process request. Please check your API configuration.', timestamp: Date.now() }]);
+      } finally {
+        setIsProcessing(false);
+      }
     };
 
     recognition.onerror = (event) => {
